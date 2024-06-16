@@ -33,6 +33,7 @@ def lambda_handler(event, context):
             file_name =  f'processed_data/{date_var}_processed_data.csv'
             # additional code for further processing (e.g., uploading the file to S3) can be added here
         except Exception as e:
+            print("FILE NAME NOT GENERATED BASE ON DATE TIME")
             file_name = 'processed_data/processed_data.csv'
         try:
             lambda_path = '/tmp/test.csv'
@@ -40,14 +41,19 @@ def lambda_handler(event, context):
             s3 = boto3.resource('s3')
             output_bucket_object = s3.Bucket(bucket_name)
             
+            print("bucket_name: ",bucket_name)
+            print("file_name :",file_name)
+            print("lambda_path : ",lambda_path)
+
             output_bucket_object.upload_file(lambda_path,file_name)
+            print("FILE UPLOADED SUCCESFULLY")
 
             #sns to deliver file processed request 
             sns_client = boto3.client('sns')
-            message = "Input S3 File {} has been processed succesfuly !!".format("s3://"+bucket_name+"/"+file_name)
+            message = f"Input S3 File s3://{bucket_name}/{file_name} has been processed successfully!!"
             response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
 
         except Exception as e:
             print("Exception while uploading  the file: ",str(e))
-            message = "Input S3 File {} processing is Failed !!".format("s3://"+bucket_name+"/"+file_name)
-            respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
+            error_message = f"Input S3 File {input_bucket}/{input_key} processing failed !! Error: {e}"
+            respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=error_message, MessageStructure='text')
