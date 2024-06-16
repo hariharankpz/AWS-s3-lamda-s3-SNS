@@ -9,61 +9,50 @@ from dotenv import load_dotenv
 #Loding envs
 load_dotenv()
 
+s3 = boto3.client('s3')
+sns_client = boto3.client('sns')
+
 def lambda_handler(event, context):
-    # Code added from CI CD
-    input_bucket = event['Records'][0]['s3']['bucket']['name']
-    input_key = event['Records'][0]['s3']['object']['key']
-    s3 = boto3.client('s3')
-    sns_client = boto3.client('sns')
-    obj = s3.get_object(Bucket=input_bucket, Key=input_key)
-    body = obj['Body'].read()
-    json_data = json.loads(body.decode('utf-8'))  # Decode and load JSON data directly
-    
-    df_list = []
-    for py_dict in json_data:
-        if py_dict['status'] == 'delivered':
-            df_list.append(py_dict)
-    
-    if df_list:
-        df = pd.DataFrame(df_list)
-        # df.to_csv('/tmp/test.csv', sep=',', index=False)
-        # print('test.csv file created')
 
 
-        # Convert DataFrame to CSV in memory
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)        
+    # Specify your source and destination bucket names
+    source_bucket = event['Records'][0]['s3']['bucket']['name']
+    destination_bucket = os.getenv('output_bucket')
+    file_key = event['Records'][0]['s3']['object']['key']  # JSON file key in the source bucket
 
-        try:
-            date_var = str(date.today())
-            file_name =  f'processed_data/{date_var}_processed_data.csv'
-            # additional code for further processing (e.g., uploading the file to S3) can be added here
-        except Exception as e:
-            print("FILE NAME NOT GENERATED BASE ON DATE TIME")
-            file_name = 'processed_data/processed_data.csv'
-        try:
-            lambda_path = '/tmp/test.csv'
-            bucket_name = os.getenv('output_bucket')
+    # Read JSON file from S3 into Pandas DataFrame
+    response = s3.get_object(Bucket=source_bucket, Key=file_key)
+    json_data = response['Body'].read().decode('utf-8')
+    data = json.loads(json_data)
+    df = pd.DataFrame(data)
 
-            print("bucket_name: ",bucket_name)
-            print("file_name :",file_name)
-            print("lambda_path : ",lambda_path)
+    # Convert DataFrame to CSV in memory
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    print("-----------PRINTING DATAFRAME--------",df)
 
-            s3_client = boto3.resource('s3')
-            print(f"Uploading file to S3 bucket: {bucket_name}, file name: {file_name}")
-            s3_client.put_object(Bucket=bucket_name, Key=file_name, Body=csv_buffer.getvalue())
-            # output_bucket_object = s3.Bucket(bucket_name)
-            
 
-            # output_bucket_object.upload_file(lambda_path,file_name)
-            print("FILE UPLOADED SUCCESFULLY")
+    try:
+        date_var = str(date.today())
+        output_file_key =  f'processed_data/{date_var}_processed_data.csv'
+    # additional code for further processing (e.g., uploading the file to S3) can be added here
+    except Exception as e:
+        print("FILE NAME NOT GENERATED BASE ON DATE TIME")
+        output_file_key = 'processed_data/processed_data.csv'
+       
+    try: 
+        # Upload CSV file to S3
+        s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=csv_buffer.getvalue())
+        
+        # output_bucket_object.upload_file(lambda_path,file_name)
+        print("FILE UPLOADED SUCCESFULLY")
 
-            #sns to deliver file processed request 
-            
-            message = f"Input S3 File s3://{bucket_name}/{file_name} has been processed successfully!!"
-            response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
+        #sns to deliver file processed request 
+        
+        message = f"Input S3 File s3://{destination_bucket}/{destination_bucket} has been processed successfully!!"
+        response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
 
-        except Exception as e:
-            print("Exception while uploading  the file: ",str(e))
-            error_message = f"Input S3 File {input_bucket}/{input_key} processing failed !! Error: {e}"
-            respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=error_message, MessageStructure='text')
+    except Exception as e:
+        print("Exception while uploading  the file: ",str(e))
+        error_message = f"Input S3 File {destination_bucket}/{destination_bucket} processing failed !! Error: {e}"
+        respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=error_message, MessageStructure='text')
