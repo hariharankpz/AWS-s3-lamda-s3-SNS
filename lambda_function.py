@@ -14,6 +14,7 @@ def lambda_handler(event, context):
     input_bucket = event['Records'][0]['s3']['bucket']['name']
     input_key = event['Records'][0]['s3']['object']['key']
     s3 = boto3.client('s3')
+    sns_client = boto3.client('sns')
     obj = s3.get_object(Bucket=input_bucket, Key=input_key)
     body = obj['Body'].read()
     json_data = json.loads(body.decode('utf-8'))  # Decode and load JSON data directly
@@ -25,8 +26,13 @@ def lambda_handler(event, context):
     
     if df_list:
         df = pd.DataFrame(df_list)
-        df.to_csv('/tmp/test.csv', sep=',', index=False)
-        print('test.csv file created')
+        # df.to_csv('/tmp/test.csv', sep=',', index=False)
+        # print('test.csv file created')
+
+
+        # Convert DataFrame to CSV in memory
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)        
 
         try:
             date_var = str(date.today())
@@ -38,18 +44,22 @@ def lambda_handler(event, context):
         try:
             lambda_path = '/tmp/test.csv'
             bucket_name = os.getenv('output_bucket')
-            s3 = boto3.resource('s3')
-            output_bucket_object = s3.Bucket(bucket_name)
-            
+
             print("bucket_name: ",bucket_name)
             print("file_name :",file_name)
             print("lambda_path : ",lambda_path)
 
-            output_bucket_object.upload_file(lambda_path,file_name)
+            s3_client = boto3.resource('s3')
+            print(f"Uploading file to S3 bucket: {bucket_name}, file name: {file_name}")
+            s3_client.put_object(Bucket=bucket_name, Key=file_name, Body=csv_buffer.getvalue())
+            # output_bucket_object = s3.Bucket(bucket_name)
+            
+
+            # output_bucket_object.upload_file(lambda_path,file_name)
             print("FILE UPLOADED SUCCESFULLY")
 
             #sns to deliver file processed request 
-            sns_client = boto3.client('sns')
+            
             message = f"Input S3 File s3://{bucket_name}/{file_name} has been processed successfully!!"
             response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
 
