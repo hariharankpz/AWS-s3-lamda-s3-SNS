@@ -46,7 +46,7 @@ def lambda_handler(event, context):
         output_file_key = 'processed_data/processed_data.csv'
        
     try: 
-        print("TARGET ARN: ",os.getenv('sns_arn'))
+        # print("TARGET ARN: ",os.getenv('sns_arn'))
         # Upload CSV file to S3
         s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=csv_buffer.getvalue())
         
@@ -63,14 +63,14 @@ def lambda_handler(event, context):
         error_message = f"Input S3 File {destination_bucket}/{output_file_key} processing failed !! Error: {e}"
         respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=sns_arn, Message=error_message, MessageStructure='text')
 
-    try:
-        print("--------------sTRYING SECOND METHOD-------------")
-        # Save DataFrame to CSV file
-        csv_file = '/tmp/data.csv'  # Temporary local path
-        df.to_csv(csv_file, index=False)
-        # Upload CSV to S3 bucket
-        with open(csv_file, 'rb') as f:
-            s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=f)
-        print("FILE UPLOADED SUCCESFULLY AT SECOND FUNCTION")
-    except Exception as e:
-        print("Exception occurs :",str(e))
+    # try:
+    #     print("--------------sTRYING SECOND METHOD-------------")
+    #     # Save DataFrame to CSV file
+    #     csv_file = '/tmp/data.csv'  # Temporary local path
+    #     df.to_csv(csv_file, index=False)
+    #     # Upload CSV to S3 bucket
+    #     with open(csv_file, 'rb') as f:
+    #         s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=f)
+    #     print("FILE UPLOADED SUCCESFULLY AT SECOND FUNCTION")
+    # except Exception as e:
+    #     print("Exception occurs :",str(e))
