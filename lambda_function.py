@@ -6,6 +6,7 @@ from datetime import date
 import os
 from dotenv import load_dotenv
 
+#Loding envs
 load_dotenv()
 
 def lambda_handler(event, context):
