@@ -17,7 +17,9 @@ def lambda_handler(event, context):
 
     # Specify your source and destination bucket names
     source_bucket = event['Records'][0]['s3']['bucket']['name']
-    destination_bucket = os.getenv('output_bucket')
+    # destination_bucket = os.getenv('output_bucket')
+    destination_bucket = " hh-doordash-target-zn-gds-assign-3"
+    sns_arn = "arn:aws:sns:us-east-1:381491939671:s3-lambda-file-execution"
     file_key = event['Records'][0]['s3']['object']['key']  # JSON file key in the source bucket
 
 
@@ -68,5 +70,6 @@ def lambda_handler(event, context):
         # Upload CSV to S3 bucket
         with open(csv_file, 'rb') as f:
             s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=f)
+        print("FILE UPLOADED SUCCESFULLY AT SECOND FUNCTION")
     except Exception as e:
         print("Exception occurs :",str(e))
