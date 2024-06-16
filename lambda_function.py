@@ -9,20 +9,37 @@ from dotenv import load_dotenv
 #Loding envs
 load_dotenv()
 
+# def lambda_handler(event, context):
+    # Code added from CI CD
+    # input_bucket = event['Records'][0]['s3']['bucket']['name']
+    # input_key = event['Records'][0]['s3']['object']['key']
+    # s3 = boto3.client('s3')
+    # obj = s3.get_object(Bucket = input_bucket, Key = input_key)
+    # body = obj['Body'].read()
+    # json_dicts = body.decode('utf-8').split('\r\n')
+    # df = pd.DataFrame(columns = ['id','status','amount','date'])
+    # for line in json_dicts:
+    #     py_dict = json.loads(line)
+    #     if py_dict['status'] == 'delivered':
+    #         df.loc[py_dict['id']] = py_dict
+    # df.to_csv('/tmp/test.csv',sep = ',')
+    # print('test.csv file created')
+    
 def lambda_handler(event, context):
     # Code added from CI CD
     input_bucket = event['Records'][0]['s3']['bucket']['name']
     input_key = event['Records'][0]['s3']['object']['key']
     s3 = boto3.client('s3')
-    obj = s3.get_object(Bucket = input_bucket, Key = input_key)
+    obj = s3.get_object(Bucket=input_bucket, Key=input_key)
     body = obj['Body'].read()
-    json_dicts = body.decode('utf-8').split('\r\n')
-    df = pd.DataFrame(columns = ['id','status','amount','date'])
-    for line in json_dicts:
-        py_dict = json.loads(line)
+    json_data = json.loads(body.decode('utf-8'))  # Decode and load JSON data directly
+    
+    df = pd.DataFrame(columns=['id', 'status', 'amount', 'date'])
+    for py_dict in json_data:
         if py_dict['status'] == 'delivered':
-            df.loc[py_dict['id']] = py_dict
-    df.to_csv('/tmp/test.csv',sep = ',')
+            df = df.append(py_dict, ignore_index=True)
+    
+    df.to_csv('/tmp/test.csv', sep=',', index=False)
     print('test.csv file created')
     try:
         date_var = str(date.today())
