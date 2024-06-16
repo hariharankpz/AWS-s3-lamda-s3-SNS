@@ -20,10 +20,13 @@ def lambda_handler(event, context):
     destination_bucket = os.getenv('output_bucket')
     file_key = event['Records'][0]['s3']['object']['key']  # JSON file key in the source bucket
 
+
+    print("destination_bucket :::::",destination_bucket)
     # Read JSON file from S3 into Pandas DataFrame
     response = s3.get_object(Bucket=source_bucket, Key=file_key)
     json_data = response['Body'].read().decode('utf-8')
     data = json.loads(json_data)
+    print("data ::::::::",data)
     df = pd.DataFrame(data)
 
     # Convert DataFrame to CSV in memory
@@ -41,6 +44,7 @@ def lambda_handler(event, context):
         output_file_key = 'processed_data/processed_data.csv'
        
     try: 
+        print("TARGET ARN: ",os.getenv('sns_arn'))
         # Upload CSV file to S3
         s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=csv_buffer.getvalue())
         
@@ -49,10 +53,20 @@ def lambda_handler(event, context):
 
         #sns to deliver file processed request 
         
-        message = f"Input S3 File s3://{destination_bucket}/{destination_bucket} has been processed successfully!!"
+        message = f"Input S3 File s3://{destination_bucket}/{output_file_key} has been processed successfully!!"
         response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
 
     except Exception as e:
         print("Exception while uploading  the file: ",str(e))
-        error_message = f"Input S3 File {destination_bucket}/{destination_bucket} processing failed !! Error: {e}"
+        error_message = f"Input S3 File {destination_bucket}/{output_file_key} processing failed !! Error: {e}"
         respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=error_message, MessageStructure='text')
+
+    try:
+        # Save DataFrame to CSV file
+        csv_file = '/tmp/data.csv'  # Temporary local path
+        df.to_csv(csv_file, index=False)
+        # Upload CSV to S3 bucket
+        with open(csv_file, 'rb') as f:
+            s3.put_object(Bucket=destination_bucket, Key=output_file_key, Body=f)
+    except Exception as e:
+        print("Exception occurs :",str(e))
