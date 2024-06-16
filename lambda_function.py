@@ -18,7 +18,7 @@ def lambda_handler(event, context):
     # Specify your source and destination bucket names
     source_bucket = event['Records'][0]['s3']['bucket']['name']
     # destination_bucket = os.getenv('output_bucket')
-    destination_bucket = " hh-doordash-target-zn-gds-assign-3"
+    destination_bucket = "hh-doordash-target-zn-gds-assign-3"
     sns_arn = "arn:aws:sns:us-east-1:381491939671:s3-lambda-file-execution"
     file_key = event['Records'][0]['s3']['object']['key']  # JSON file key in the source bucket
 
@@ -56,14 +56,15 @@ def lambda_handler(event, context):
         #sns to deliver file processed request 
         
         message = f"Input S3 File s3://{destination_bucket}/{output_file_key} has been processed successfully!!"
-        response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=os.getenv('sns_arn'), Message=message, MessageStructure='text')
+        response = sns_client.publish(Subject="SUCCESS - Daily Data Processing",TargetArn=sns_arn, Message=message, MessageStructure='text')
 
     except Exception as e:
         print("Exception while uploading  the file: ",str(e))
         error_message = f"Input S3 File {destination_bucket}/{output_file_key} processing failed !! Error: {e}"
-        respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=os.getenv('sns_arn'), Message=error_message, MessageStructure='text')
+        respone = sns_client.publish(Subject="FAILED - Daily Data Processing", TargetArn=sns_arn, Message=error_message, MessageStructure='text')
 
     try:
+        print("--------------sTRYING SECOND METHOD-------------")
         # Save DataFrame to CSV file
         csv_file = '/tmp/data.csv'  # Temporary local path
         df.to_csv(csv_file, index=False)
