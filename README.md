@@ -2,7 +2,7 @@
 
 ## Overview
 
-This AWS Lambda function processes JSON files uploaded to an S3 bucket, converts them to CSV format, and stores them back in S3. It also sends email notifications upon successful processing or failure.
+This AWS Lambda function processes JSON files uploaded to an S3 bucket (event based), converts them to CSV format, and stores them back in S3. It also sends email notifications upon successful processing or failure.
 
 ## How It Works
 
